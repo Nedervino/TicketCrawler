@@ -4,14 +4,15 @@ import time
 from selenium import webdriver
 import os
 import threading
+import random
 # import subprocess
 
 #  TODO
 #  - Implement url hashtable to prevent constant re-iterating of reserved links
-#  - Proxy rotation (Incorporate proxymesh trial or tor project)
-#  - User agent rotation
+#  - Proxy rotation using tor project / private proxy list instead of proxymesh
 #  - Loop within python script instead of in bash script: https://doc.scrapy.org/en/latest/topics/practices.html run script from within python script
-#  - Don't call all parse methods
+#  - remove multi-url structure, code cleanup
+#  - Open browser and login before start of loop, needs all bash functionality rewritten within python
 
 
 class Spider2Spider(scrapy.Spider):
@@ -21,29 +22,60 @@ class Spider2Spider(scrapy.Spider):
     start_urls = ["https://www.ticketswap.nl/listing/awakenings-early-new-years-special/998303/39db47efab"]
     successful = False
     ticketNumber = 0
-    ticketList = []
+    # ticketList = []
+
 
     def __init__(self, *a, **kw):
         super(Spider2Spider, self).__init__(*a, **kw)
         # self.browser = webdriver.Chrome()
         # self.browser = webdriver.PhantomJS() #headless testing
+        self.browser = webdriver.Chrome()
+        # self.browser.get(response.url)
+        self.browser.get('https://www.ticketswap.nl')
+        self.browser.find_element_by_link_text('Inloggen').click()
+        # self.browser.save_screenshot('ticketswap.png')
+        # self.browser.implicitly_wait(2)
+        # self.browser.find_element_by_class_name("btn-buy").click()
+
+        for handle in self.browser.window_handles:
+            self.browser.switch_to_window(handle)
+        self.browser.save_screenshot('facebook.png')
+        inputElement = self.browser.find_element_by_name("email")  # self.browser.find_element_by_class_name("inputtext")
+        inputElement.clear()
+        inputElement.send_keys('tim.nederveen@hotmail.com')
+        inputElement = self.browser.find_element_by_name("pass")  # self.browser.find_element_by_class_name("inputpassword")
+        inputElement.clear()
+        inputElement.send_keys('mijzelfnatuurlijk')
+        self.browser.save_screenshot('facebook2.png')
+        self.browser.find_element_by_name('login').click()
+
+        for handle in self.browser.window_handles:
+            self.browser.switch_to_window(handle)
+
 
     def start_requests(self):
         # self.setInterval(self.loop, 12)
         for url in self.start_urls:
-            request = scrapy.Request(url=url, callback=self.parse)
+            request = scrapy.Request(url=url, callback=self.loop)
             # print 'Request headers:'
             # print request.headers
             yield request
             # yield scrapy.Request('http://checkip.dyndns.org/', callback=self.check_ip)
 
-    # def loop(self):
-    #     url = self.start_urls[0]
-    #     return scrapy.Request(url=url, callback=self.parse)
+
+    def loop(self, response):
+        url = self.start_urls[0]
+        while not self.successful:
+            return scrapy.Request(url=url, callback=self.parse, dont_filter=True)
+            sleepDuration = random.uniform(0.7, 2.0)
+            print 'Sleeping for ' + str(sleepDuration)
+            time.sleep(sleepDuration)
+
 
     def check_ip(self, response):
         pub_ip = response.xpath('//body/text()').re('\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}')[0]
         print "My public IP is: " + pub_ip
+
 
     def parse(self, response):
         print 'parsing'
@@ -52,15 +84,13 @@ class Spider2Spider(scrapy.Spider):
         print response.headers
         # del self.ticketList[:]
 
-
-        if 'Aangeboden' not in response.xpath('//section[1]/h2/text()').extract():
-            if 'Oeps, iets te vaak vernieuwd' in response.body:
-                self.botAlert(response)
-            else:
-                print 'Geen tickets aangeboden op dit moment'
+        if 'Plaats een oproep' in response.body:
+            print 'Geen tickets aangeboden op dit moment'
+        elif 'Oeps, iets te vaak vernieuwd' in response.body:
+            self.botAlert(response)
         else:
             print 'Kaartjes aangeboden'
-            for ticket in response.xpath('//section[1]/div/article'):
+            for ticket in response.xpath('//body/div[4]/div/div[2]/article'):  # response.xpath('//body/div[3]/div/div[2]/article'):
                 if self.successful:
                     break
                 ticketUrl = ticket.xpath('div[1]/h3/a/@href').extract_first()  # ticket.extract().xpath('div[0]/h3/a').extract()
@@ -68,6 +98,22 @@ class Spider2Spider(scrapy.Spider):
                 print 'Trying ticketlink: ' + url
                 yield scrapy.Request(url, callback=self.buyTicket)
                 break   # TODO: remove
+
+        # if 'Aangeboden' not in response.xpath('//section[1]/h2/text()').extract():
+        #     if 'Oeps, iets te vaak vernieuwd' in response.body:
+        #         self.botAlert(response)
+        #     else:
+        #         print 'Geen tickets aangeboden op dit moment'
+        # else:
+        #     print 'Kaartjes aangeboden'
+        #     for ticket in response.xpath('//section[1]/div/article'):
+        #         if self.successful:
+        #             break
+        #         ticketUrl = ticket.xpath('div[1]/h3/a/@href').extract_first()  # ticket.extract().xpath('div[0]/h3/a').extract()
+        #         url = self.baseUrl + ticketUrl
+        #         print 'Trying ticketlink: ' + url
+        #         yield scrapy.Request(url, callback=self.buyTicket)
+        #         break   # TODO: remove
 
 
     def buyTicket(self, response):
@@ -90,30 +136,31 @@ class Spider2Spider(scrapy.Spider):
         else:
             print 'Tickets nog beschikbaar. Browser wordt geopend'
             os.system('say "Ticket found"')
-            self.browser = webdriver.Chrome()
-            # self.browser.get(response.url)
-            # self.browser.find_element_by_link_text('Inloggen').click()
-            
+            # self.browser = webdriver.Chrome()
             self.browser.get(response.url)
-            self.browser.save_screenshot('ticketswap.png')
-            self.browser.implicitly_wait(2)
             self.browser.find_element_by_class_name("btn-buy").click()
+            # # self.browser.find_element_by_link_text('Inloggen').click()
+            
+            # self.browser.get(response.url)
+            # self.browser.save_screenshot('ticketswap.png')
+            # self.browser.implicitly_wait(2)
+            
 
-            for handle in self.browser.window_handles:
-                self.browser.switch_to_window(handle)
-            self.browser.save_screenshot('facebook.png')
-            inputElement = self.browser.find_element_by_name("email")  # self.browser.find_element_by_class_name("inputtext")
-            inputElement.clear()
-            inputElement.send_keys('tim.nederveen@hotmail.com')
-            inputElement = self.browser.find_element_by_name("pass")  # self.browser.find_element_by_class_name("inputpassword")
-            inputElement.clear()
-            inputElement.send_keys('mijzelfnatuurlijk')
-            self.browser.save_screenshot('facebook2.png')
-            self.browser.find_element_by_name('login').click()
+            # for handle in self.browser.window_handles:
+            #     self.browser.switch_to_window(handle)
+            # self.browser.save_screenshot('facebook.png')
+            # inputElement = self.browser.find_element_by_name("email")  # self.browser.find_element_by_class_name("inputtext")
+            # inputElement.clear()
+            # inputElement.send_keys('tim.nederveen@hotmail.com')
+            # inputElement = self.browser.find_element_by_name("pass")  # self.browser.find_element_by_class_name("inputpassword")
+            # inputElement.clear()
+            # inputElement.send_keys('mijzelfnatuurlijk')
+            # self.browser.save_screenshot('facebook2.png')
+            # self.browser.find_element_by_name('login').click()
 
-            for handle in self.browser.window_handles:
-                self.browser.switch_to_window(handle)
-            time.sleep(7)
+            # for handle in self.browser.window_handles:
+            #     self.browser.switch_to_window(handle)
+            time.sleep(6)
             self.browser.save_screenshot('ticketswap2.png')
 
             # if "Bestelling afronden" in self.driver.page_source:

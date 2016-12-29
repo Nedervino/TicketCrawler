@@ -11,6 +11,7 @@ import threading
 #  - Proxy rotation using tor project / private proxy list instead of proxymesh
 #  - Loop within python script instead of in bash script: https://doc.scrapy.org/en/latest/topics/practices.html run script from within python script
 #  - remove multi-url structure, code cleanup
+#  - Open browser and login before start of loop, needs all bash functionality rewritten within python
 
 
 class TicketswapSpider(scrapy.Spider):

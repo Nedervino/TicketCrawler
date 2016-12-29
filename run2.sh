@@ -7,7 +7,7 @@ while true
 do 
 	((iteration++))
     printf "\nExecuting run number %d\n" $iteration
-    scrapy crawl ticketswap | tee out.log
+    scrapy crawl spider2 | tee out.log
     printf "\nRun $iteration\n" $iteration >> total.log
     cat out.log >> total.log
     errorCode=${PIPESTATUS[0]}
