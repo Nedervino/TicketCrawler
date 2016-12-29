@@ -2,39 +2,56 @@
 import scrapy
 import time
 from selenium import webdriver
-import signal
 import os
 import threading
 # import subprocess
 
 #  TODO
 #  - Implement url hashtable to prevent constant re-iterating of reserved links
-#  - Proxy rotation
+#  - Proxy rotation (Incorporate proxymesh trial or tor project)
 #  - User agent rotation
-#  - Loop every 12 seconds
+#  - Loop within python script instead of in bash script: https://doc.scrapy.org/en/latest/topics/practices.html run script from within python script
 #  - Don't call all parse methods
 
 
 class TicketswapSpider(scrapy.Spider):
     name = "ticketswap"
     baseUrl = "http://www.ticketswap.nl"
-    # start_urls = ["https://www.ticketswap.nl/event/drake-the-boy-meets-world-tour/floor/5ac0bb61-c5f4-4c58-9567-4da2d9cc439d/30473"]
+    start_urls = ["https://www.ticketswap.nl/event/next-mondays-hangover-fck-nye/6911a50c-58c3-45bf-9578-83253fdb40bd"]  # ["https://www.ticketswap.nl/event/robbie-williams-the-heavy-entertainment-show/floor/de997992-367e-4eb4-b873-bffe7b253102/48520"]  #  ["https://www.ticketswap.nl/event/next-mondays-hangover-fck-nye/6911a50c-58c3-45bf-9578-83253fdb40bd"]
     successful = False
     ticketNumber = 0
+    ticketList = []
 
     def __init__(self, *a, **kw):
         super(TicketswapSpider, self).__init__(*a, **kw)
-        print 'initialized'
-        self.browser = webdriver.Chrome()
+        # self.browser = webdriver.Chrome()
         # self.browser = webdriver.PhantomJS() #headless testing
 
     def start_requests(self):
-        urls = ["https://www.ticketswap.nl/event/drake-the-boy-meets-world-tour/floor/5ac0bb61-c5f4-4c58-9567-4da2d9cc439d/30473"]
+        # self.setInterval(self.loop, 12)
+        for url in self.start_urls:
+            request = scrapy.Request(url=url, callback=self.parse)
+            # print 'Request headers:'
+            # print request.headers
+            yield request
+            # yield scrapy.Request('http://checkip.dyndns.org/', callback=self.check_ip)
 
-        for url in urls:
-            yield scrapy.Request(url=url, callback=self.parse)
+    # def loop(self):
+    #     url = self.start_urls[0]
+    #     return scrapy.Request(url=url, callback=self.parse)
+
+    def check_ip(self, response):
+        pub_ip = response.xpath('//body/text()').re('\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}')[0]
+        print "My public IP is: " + pub_ip
 
     def parse(self, response):
+        print 'parsing'
+        # print response.request.headers['User-Agent']
+        # print response.request.headers
+        print response.headers
+        # del self.ticketList[:]
+
+
         if 'Aangeboden' not in response.xpath('//section[1]/h2/text()').extract():
             if 'Oeps, iets te vaak vernieuwd' in response.body:
                 self.botAlert(response)
@@ -57,21 +74,29 @@ class TicketswapSpider(scrapy.Spider):
             return
         self.ticketNumber += 1
         print 'Ticket request number ' + str(self.ticketNumber)
-        if False: #  'Iemand anders' in response.body or 'Helaas! deze tickets zijn' in response.body or 'verwijderd' in response.body:
+        # if 'Iemand anders' in response.body or 'Helaas! deze tickets zijn' in response.body or 'verwijderd' in response.body:
+        #     if 'Iemand anders' in response.body:
+        #         print 'a'
+        #     print 'Tickets zijn al bezet'
+        #     with open('lastCrawl.html', 'wb') as F:
+        #         F.write(response.body)
+        if 'Oeps, iets te vaak vernieuwd' in response.body:
+            self.botAlert(response)
+        elif 'Koop e-ticket' not in response.body:
             print 'Tickets zijn al bezet'
             with open('lastCrawl.html', 'wb') as F:
                 F.write(response.body)
-        elif 'Oeps, iets te vaak vernieuwd' in response.body:
-            self.botAlert(response)
         else:
             print 'Tickets nog beschikbaar. Browser wordt geopend'
+            os.system('say "Ticket found"')
+            self.browser = webdriver.Chrome()
             # self.browser.get(response.url)
             # self.browser.find_element_by_link_text('Inloggen').click()
+            
             self.browser.get(response.url)
             self.browser.save_screenshot('ticketswap.png')
-            self.browser.implicitly_wait(5)
+            self.browser.implicitly_wait(2)
             self.browser.find_element_by_class_name("btn-buy").click()
-            # self.browser.find_element_by_link_text('Koop e-ticket').click()
 
             for handle in self.browser.window_handles:
                 self.browser.switch_to_window(handle)
@@ -87,14 +112,15 @@ class TicketswapSpider(scrapy.Spider):
 
             for handle in self.browser.window_handles:
                 self.browser.switch_to_window(handle)
-            time.sleep(10)
+            time.sleep(7)
             self.browser.save_screenshot('ticketswap2.png')
 
             # if "Bestelling afronden" in self.driver.page_source:
             if 'Bestelling afronden' in self.browser.page_source:
                 print 'Gereserveerd'
+                os.system('say "Ticket placed in cart"')
                 self.successful = True
-                self.setInterval(self.notifyUser, 4)
+                # self.setInterval(self.notifyUser, 4)
                 # subprocess.call(["./tg.sh"], shell=True)
                 # while 1:
                 #     os.system('say "Ticket found"')
@@ -109,19 +135,20 @@ class TicketswapSpider(scrapy.Spider):
 
     def botAlert(self, response):
         print 'Te vaak gecrawled'
+        # os.system('say "Crawled too often"')
         # print "Start : %s" % time.ctime()
         # time.sleep(1)
         # print "End : %s" % time.ctime()
         with open('lastCrawl.html', 'wb') as F:
             F.write(response.body)
-        self.browser.get(response.url)
-        input('Press ENTER to continue')
-        # time.sleep(10)
-        # while True:
-        #     time.sleep(1)
+
+        # self.browser = webdriver.Chrome()
+        # self.browser.get(response.url)
+        # raw_input('Press ENTER to continue')
+        print 'Press ENTER to continue'
 
 
-    def notifyUser():
+    def notifyUser(self):
         # os.system('say "Ticket found"')
         print 'ticket found'
 
