@@ -32,23 +32,18 @@ class Spider2Spider(scrapy.Spider):
 
     def __init__(self, *a, **kw):
         super(Spider2Spider, self).__init__(*a, **kw)
-        # self.browser = webdriver.Chrome()
         # self.browser = webdriver.PhantomJS() #headless testing
         self.browser = webdriver.Chrome()
-        # self.browser.get(response.url)
         self.browser.get('https://www.ticketswap.nl')
         self.browser.find_element_by_link_text('Inloggen').click()
-        # self.browser.save_screenshot('ticketswap.png')
-        # self.browser.implicitly_wait(2)
-        # self.browser.find_element_by_class_name("btn-buy").click()
 
         for handle in self.browser.window_handles:
             self.browser.switch_to_window(handle)
         self.browser.save_screenshot('facebook.png')
-        inputElement = self.browser.find_element_by_name("email")  # self.browser.find_element_by_class_name("inputtext")
+        inputElement = self.browser.find_element_by_name("email")
         inputElement.clear()
         inputElement.send_keys('tim.nederveen@hotmail.com')
-        inputElement = self.browser.find_element_by_name("pass")  # self.browser.find_element_by_class_name("inputpassword")
+        inputElement = self.browser.find_element_by_name("pass")
         inputElement.clear()
         inputElement.send_keys('mijzelfnatuurlijk')
         self.browser.save_screenshot('facebook2.png')
@@ -59,21 +54,10 @@ class Spider2Spider(scrapy.Spider):
 
 
     def start_requests(self):
-        # self.setInterval(self.loop, 12)
         for url in self.start_urls:
             request = scrapy.Request(url=url, callback=self.parse)
-            # print 'Request headers:'
-            # print request.headers
             yield request
             # yield scrapy.Request('http://checkip.dyndns.org/', callback=self.check_ip)
-
-    # def loop(self, response):
-    #     url = self.start_urls[0]
-    #     while not self.successful:
-    #         return scrapy.Request(url=url, callback=self.parse, dont_filter=True)
-    #         sleepDuration = random.uniform(0.7, 2.0)
-    #         print 'Sleeping for ' + str(sleepDuration)
-    #         time.sleep(sleepDuration)
 
     def check_ip(self, response):
         pub_ip = response.xpath('//body/text()').re('\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}')[0]
@@ -185,9 +169,6 @@ class Spider2Spider(scrapy.Spider):
         t = threading.Timer(sec, funcWrapper)
         t.start()
         return t
-
-    # def gracefulExit(self,signum, frame):
-    #       self.kill_now = True
 
 
         # CORRECT
