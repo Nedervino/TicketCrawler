@@ -8,22 +8,23 @@ import threading
 
 #  TODO
 #  - Implement url hashtable to prevent constant re-iterating of reserved links
-#  - Proxy rotation using tor project / private proxy list instead of proxymesh
+#  - Proxy rotation (Incorporate proxymesh trial or tor project)
+#  - User agent rotation
 #  - Loop within python script instead of in bash script: https://doc.scrapy.org/en/latest/topics/practices.html run script from within python script
-#  - remove multi-url structure, code cleanup
+#  - Don't call all parse methods
 
 
-class TicketswapSpider(scrapy.Spider):
-    name = "ticketswap"
+class Spider2Spider(scrapy.Spider):
+    name = "spider2"
     baseUrl = "http://www.ticketswap.nl"
-    start_urls = ["https://www.ticketswap.nl/event/next-mondays-hangover-fck-nye/6911a50c-58c3-45bf-9578-83253fdb40bd"]  # ["https://www.ticketswap.nl/event/robbie-williams-the-heavy-entertainment-show/floor/de997992-367e-4eb4-b873-bffe7b253102/48520"]  #  ["https://www.ticketswap.nl/event/next-mondays-hangover-fck-nye/6911a50c-58c3-45bf-9578-83253fdb40bd"]
-    # start_urls = ["https://www.ticketswap.nl/listing/awakenings-early-new-years-special/998303/39db47efab"]
+    # start_urls = ["https://www.ticketswap.nl/event/next-mondays-hangover-fck-nye/6911a50c-58c3-45bf-9578-83253fdb40bd"]  # ["https://www.ticketswap.nl/event/robbie-williams-the-heavy-entertainment-show/floor/de997992-367e-4eb4-b873-bffe7b253102/48520"]  #  ["https://www.ticketswap.nl/event/next-mondays-hangover-fck-nye/6911a50c-58c3-45bf-9578-83253fdb40bd"]
+    start_urls = ["https://www.ticketswap.nl/listing/awakenings-early-new-years-special/998303/39db47efab"]
     successful = False
     ticketNumber = 0
     ticketList = []
 
     def __init__(self, *a, **kw):
-        super(TicketswapSpider, self).__init__(*a, **kw)
+        super(Spider2Spider, self).__init__(*a, **kw)
         # self.browser = webdriver.Chrome()
         # self.browser = webdriver.PhantomJS() #headless testing
 

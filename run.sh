@@ -7,12 +7,11 @@ while true
 do 
 	((iteration++))
     printf "\nExecuting run number %d\n" $iteration
-    # scrapy crawl ticketswap || {
-    scrapy crawl ticketswap | tee out.log
+    scrapy crawl spider2 | tee out.log
     printf "\nRun $iteration\n" $iteration >> total.log
     cat out.log >> total.log
     errorCode=${PIPESTATUS[0]}
-    if grep -q "Press ENTER to continue" out.log; then #|| $errorCode -ne 0 ; then
+    if grep -q "Press ENTER to continue" out.log; then
     	interval=$SECONDS
     	printf "\nFailed run number %d after $(($interval / 60)) minutes and $(($interval % 60)) seconds, starting over\n" $iteration
     	echo "$(($interval / 60)) minutes and $(($interval % 60)) seconds" >> total.log
@@ -24,28 +23,15 @@ do
     	# sleep 120
     	iteration=0
     	SECONDS=0
-
-    	# break
     else
     	tabOpen=false
     fi
     if [[ "$iteration" -gt 20 ]]; then
     	# duration=120
-    	duration=$[ ( $RANDOM % 3 )  + 2 ]
+    	duration=$[ ( $RANDOM % 3 )  + 2 ]	# TODO
     else
-    	duration=$[ ( $RANDOM % 3 )  + 2 ]
+    	duration=$[ ( $RANDOM % 3 )  + 2 ]  # TODO
     fi
     printf "\nEnding run number %d with exit code %d. Sleeping for %d seconds\n" $iteration $errorCode $duration
     sleep "$duration"
 done
-echo 'An unexpected error occured'
-
-# if [ "$#" -ne 1 ]; then
-#   echo "Usage: $0 <input_file>" >&2
-#   exit 1
-# elif ! [ -e "$1" ]; then
-#   echo "$1 not found, please enter a valid filepath" >&2
-#   exit 1
-# else
-#   python main.py $1 | tee output.txt
-# fi
