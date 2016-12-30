@@ -5,14 +5,16 @@ from selenium import webdriver
 import os
 import threading
 import random
+import requests
 
 #  TODO
 #  - Implement url hashtable to prevent constant re-iterating of reserved links
 #  - Proxy rotation using tor project / private proxy list instead of proxymesh
 #  - remove multi-url structure, code cleanup
 #  - Initial url request to automatically transform event link into first sold ticket link
-#  - Notify using telegram bot
+#  - Start scraping via telegram
 
+# scrapy crawl ticketswap -a url=https://www.ticketswap.nl/listing/next-mondays-hangover-fck-nye/1000194/fbeb6be09d
 
 class TicketswapSpider(scrapy.Spider):
     name = "ticketswap"
@@ -21,10 +23,11 @@ class TicketswapSpider(scrapy.Spider):
     successful = False
     ticketNumber = 0
     iteration = 0
-    # telegram settings
-    TOKEN = "<your-bot-token>"
-    URL = "https://api.telegram.org/bot{}/".format(TOKEN)
 
+    # telegram settings
+    TOKEN = os.environ['telegram_token']
+    telegramUrl = "https://api.telegram.org/bot{}/".format(TOKEN)
+    chatId = 57249435
 
     custom_settings = {
         "DOWNLOAD_DELAY": 0.25
@@ -32,9 +35,7 @@ class TicketswapSpider(scrapy.Spider):
 
 
     def __init__(self, url=' ', *args, **kwargs):
-        urlVariable = url
-        print urlVariable
-        self.start_urls = [urlVariable]
+        self.start_urls = [url]
         super(TicketswapSpider, self).__init__(*args, **kwargs)
         # self.browser = webdriver.PhantomJS()  # headless testing
         self.browser = webdriver.Chrome()
@@ -61,10 +62,17 @@ class TicketswapSpider(scrapy.Spider):
             yield request
             # yield scrapy.Request('http://checkip.dyndns.org/', callback=self.check_ip)   # enable to check proxy per request
 
+
     def check_ip(self, response):
         pub_ip = response.xpath('//body/text()').re('\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}')[0]
         print "My public IP is: " + pub_ip
 
+
+    def sendTelegramMessage(self, text):
+        print 'Notifying via Telegram'
+        url = self.telegramUrl + "sendMessage?text={}&chat_id={}".format(text, self.chatId)
+        r = requests.get(url)
+        print r.status_code
 
     def parse(self, response):
         self.iteration += 1
@@ -83,6 +91,8 @@ class TicketswapSpider(scrapy.Spider):
             self.iteration = 0
             # self.botAlert(response)
             print 'Te vaak gecrawled'
+            text = "Te vaak gecrawled"
+            self.sendTelegramMessage(text)
             self.browser.get(self.start_urls[0])
             raw_input('Press ENTER to continue')
             yield scrapy.Request(url=self.start_urls[0], callback=self.parse, dont_filter=True)
@@ -112,11 +122,9 @@ class TicketswapSpider(scrapy.Spider):
                     if 'Bestelling afronden' in self.browser.page_source:
                         print 'Gereserveerd'
                         os.system('say "Ticket placed in cart"')
+                        text = "Reserved ticket. Visit https://www.ticketswap.nl/cart to complete payment."
+                        self.sendTelegramMessage(text)
                         self.successful = True
-                        # self.setInterval(self.notifyUser, 4)
-                        # while 1:
-                        #     os.system('say "Ticket found"')
-                        #     time.sleep(4)
                     elif 'Je hebt ons geen toegang gegeven tot je Facebook account' in self.browser.page_source:
                         print 'Error tijdens Facebook login'
                     else:

@@ -29,9 +29,9 @@ export fb_password=<facebook_password>
 
 
 ####Execution
-The project contains two spiders, located in the ticketswapSpider/spiders directory. spider2 is the working version, and can be started by running the following command from the root:
+The project contains two spiders, located in the ticketswapSpider/spiders directory. ticketswap is the full working version, and can be started by running the following command from the root:
 ```
-scrapy crawl spider2 -a url=<url_to_first_sold_event_ticket>
+scrapy crawl ticketswap -a url=<url_to_first_sold_event_ticket>
 ```
 
 
