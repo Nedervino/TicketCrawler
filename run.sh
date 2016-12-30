@@ -7,7 +7,7 @@ while true
 do 
 	((iteration++))
     printf "\nExecuting run number %d\n" $iteration
-    scrapy crawl ticketswap | tee out.log
+    scrapy crawl singleTicketswap | tee out.log
     printf "\nRun $iteration\n" $iteration >> total.log
     cat out.log >> total.log
     errorCode=${PIPESTATUS[0]}
@@ -16,7 +16,7 @@ do
     	printf "\nFailed run number %d after $(($interval / 60)) minutes and $(($interval % 60)) seconds, starting over\n" $iteration
     	echo "$(($interval / 60)) minutes and $(($interval % 60)) seconds" >> total.log
     	if [ "$tabOpen" = false ]; then
-    		open https://www.ticketswap.nl/event/next-mondays-hangover-fck-nye/6911a50c-58c3-45bf-9578-83253fdb40bd
+    		open https://www.ticketswap.nl/event/canto-ostinato-in-de-grote-zaal-tivolivredenburg/e9d0ac25-c408-479c-8b75-832c52466026
     		echo "$(($interval / 60)) minutes and $(($interval % 60)) seconds" >> intervals.log
     		tabOpen=true
     	fi

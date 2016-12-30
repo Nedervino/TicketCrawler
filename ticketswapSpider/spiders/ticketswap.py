@@ -4,69 +4,129 @@ import time
 from selenium import webdriver
 import os
 import threading
-# import subprocess
+import random
 
 #  TODO
 #  - Implement url hashtable to prevent constant re-iterating of reserved links
 #  - Proxy rotation using tor project / private proxy list instead of proxymesh
-#  - Loop within python script instead of in bash script: https://doc.scrapy.org/en/latest/topics/practices.html run script from within python script
 #  - remove multi-url structure, code cleanup
-#  - Open browser and login before start of loop, needs all bash functionality rewritten within python
+#  - Initial url request to automatically transform event link into first sold ticket link
+#  - Notify using telegram bot
 
 
 class TicketswapSpider(scrapy.Spider):
     name = "ticketswap"
     baseUrl = "http://www.ticketswap.nl"
-    start_urls = ["https://www.ticketswap.nl/event/next-mondays-hangover-fck-nye/6911a50c-58c3-45bf-9578-83253fdb40bd"]  # ["https://www.ticketswap.nl/event/robbie-williams-the-heavy-entertainment-show/floor/de997992-367e-4eb4-b873-bffe7b253102/48520"]  #  ["https://www.ticketswap.nl/event/next-mondays-hangover-fck-nye/6911a50c-58c3-45bf-9578-83253fdb40bd"]
-    # start_urls = ["https://www.ticketswap.nl/listing/awakenings-early-new-years-special/998303/39db47efab"]
+    # start_urls = ["https://www.ticketswap.nl/event/canto-ostinato-in-de-grote-zaal-tivolivredenburg/e9d0ac25-c408-479c-8b75-832c52466026"]
     successful = False
     ticketNumber = 0
-    ticketList = []
+    iteration = 0
+    # telegram settings
+    TOKEN = "<your-bot-token>"
+    URL = "https://api.telegram.org/bot{}/".format(TOKEN)
 
-    def __init__(self, *a, **kw):
-        super(TicketswapSpider, self).__init__(*a, **kw)
-        # self.browser = webdriver.Chrome()
-        # self.browser = webdriver.PhantomJS() #headless testing
+
+    custom_settings = {
+        "DOWNLOAD_DELAY": 0.25
+    }
+
+
+    def __init__(self, url=' ', *args, **kwargs):
+        urlVariable = url
+        print urlVariable
+        self.start_urls = [urlVariable]
+        super(TicketswapSpider, self).__init__(*args, **kwargs)
+        # self.browser = webdriver.PhantomJS()  # headless testing
+        self.browser = webdriver.Chrome()
+        self.browser.get('https://www.ticketswap.nl')
+        self.browser.find_element_by_link_text('Inloggen').click()
+
+        for handle in self.browser.window_handles:
+            self.browser.switch_to_window(handle)
+        inputElement = self.browser.find_element_by_name("email")
+        inputElement.clear()
+        inputElement.send_keys(os.environ['fb_email'])
+        inputElement = self.browser.find_element_by_name("pass")
+        inputElement.clear()
+        inputElement.send_keys(os.environ['fb_password'])
+        self.browser.find_element_by_name('login').click()
+
+        for handle in self.browser.window_handles:
+            self.browser.switch_to_window(handle)
+
 
     def start_requests(self):
-        # self.setInterval(self.loop, 12)
         for url in self.start_urls:
-            request = scrapy.Request(url=url, callback=self.parse)
-            # print 'Request headers:'
-            # print request.headers
+            request = scrapy.Request(url=url, callback=self.parse, dont_filter=True)
             yield request
-            # yield scrapy.Request('http://checkip.dyndns.org/', callback=self.check_ip)
-
-    # def loop(self):
-    #     url = self.start_urls[0]
-    #     return scrapy.Request(url=url, callback=self.parse)
+            # yield scrapy.Request('http://checkip.dyndns.org/', callback=self.check_ip)   # enable to check proxy per request
 
     def check_ip(self, response):
         pub_ip = response.xpath('//body/text()').re('\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}')[0]
         print "My public IP is: " + pub_ip
 
+
     def parse(self, response):
-        print 'parsing'
+        self.iteration += 1
+        print 'Parsing. Successful iteration ' + str(self.iteration)
         # print response.request.headers['User-Agent']
         # print response.request.headers
-        print response.headers
-        # del self.ticketList[:]
+        # print response.headers
 
-
-        if 'Aangeboden' not in response.xpath('//section[1]/h2/text()').extract():
-            if 'Oeps, iets te vaak vernieuwd' in response.body:
-                self.botAlert(response)
-            else:
-                print 'Geen tickets aangeboden op dit moment'
+        if 'Plaats een oproep' in response.body:
+            print 'Geen tickets aangeboden op dit moment'
+            sleepDuration = random.uniform(0.6, 1.1)
+            print 'Sleeping for ' + str(sleepDuration)
+            time.sleep(sleepDuration)
+            yield scrapy.Request(url=self.start_urls[0], callback=self.parse, dont_filter=True)
+        elif 'Oeps, iets te vaak vernieuwd' in response.body:
+            self.iteration = 0
+            # self.botAlert(response)
+            print 'Te vaak gecrawled'
+            self.browser.get(self.start_urls[0])
+            raw_input('Press ENTER to continue')
+            yield scrapy.Request(url=self.start_urls[0], callback=self.parse, dont_filter=True)
         else:
+            self.iteration = 0
             print 'Kaartjes aangeboden'
-            for ticket in response.xpath('//section[1]/div/article'):
+            for ticket in response.xpath('//body/div[4]/div/div[2]/article'):
                 if self.successful:
                     break
-                ticketUrl = ticket.xpath('div[1]/h3/a/@href').extract_first()  # ticket.extract().xpath('div[0]/h3/a').extract()
+                ticketUrl = ticket.xpath('div[1]/h3/a/@href').extract_first()
                 url = self.baseUrl + ticketUrl
                 print 'Trying ticketlink: ' + url
-                yield scrapy.Request(url, callback=self.buyTicket)
+                # yield scrapy.Request(url, callback=self.buyTicket, dont_filter=True)
+                
+
+                # TODO: function call
+                os.system('say "Ticket found"')
+                self.browser.get(url)
+                if 'Koop e-ticket' not in self.browser.page_source:
+                    print 'Tickets zijn al bezet'
+                    # with open('lastCrawl.html', 'wb') as F:
+                    #     F.write()
+                    yield scrapy.Request(self.start_urls[0], callback=self.parse, dont_filter=True)
+                else:
+                    self.browser.find_element_by_class_name("btn-buy").click()
+                    time.sleep(2)
+                    if 'Bestelling afronden' in self.browser.page_source:
+                        print 'Gereserveerd'
+                        os.system('say "Ticket placed in cart"')
+                        self.successful = True
+                        # self.setInterval(self.notifyUser, 4)
+                        # while 1:
+                        #     os.system('say "Ticket found"')
+                        #     time.sleep(4)
+                    elif 'Je hebt ons geen toegang gegeven tot je Facebook account' in self.browser.page_source:
+                        print 'Error tijdens Facebook login'
+                    else:
+                        print 'Something went wrong in Selenium'
+                        self.browser.save_screenshot('errorScreenshot.png')
+                        yield scrapy.Request(self.start_urls[0], callback=self.parse, dont_filter=True)
+
+
+
+
                 break   # TODO: remove
 
 
@@ -75,48 +135,20 @@ class TicketswapSpider(scrapy.Spider):
             return
         self.ticketNumber += 1
         print 'Ticket request number ' + str(self.ticketNumber)
-        # if 'Iemand anders' in response.body or 'Helaas! deze tickets zijn' in response.body or 'verwijderd' in response.body:
-        #     if 'Iemand anders' in response.body:
-        #         print 'a'
-        #     print 'Tickets zijn al bezet'
-        #     with open('lastCrawl.html', 'wb') as F:
-        #         F.write(response.body)
         if 'Oeps, iets te vaak vernieuwd' in response.body:
             self.botAlert(response)
         elif 'Koop e-ticket' not in response.body:
             print 'Tickets zijn al bezet'
-            with open('lastCrawl.html', 'wb') as F:
-                F.write(response.body)
+
+
+            yield scrapy.Request(self.start_urls[0], callback=self.parse, dont_filter=True)
         else:
             print 'Tickets nog beschikbaar. Browser wordt geopend'
             os.system('say "Ticket found"')
-            self.browser = webdriver.Chrome()
-            # self.browser.get(response.url)
-            # self.browser.find_element_by_link_text('Inloggen').click()
-            
             self.browser.get(response.url)
-            self.browser.save_screenshot('ticketswap.png')
-            self.browser.implicitly_wait(2)
             self.browser.find_element_by_class_name("btn-buy").click()
+            time.sleep(2)
 
-            for handle in self.browser.window_handles:
-                self.browser.switch_to_window(handle)
-            self.browser.save_screenshot('facebook.png')
-            inputElement = self.browser.find_element_by_name("email")  # self.browser.find_element_by_class_name("inputtext")
-            inputElement.clear()
-            inputElement.send_keys('tim.nederveen@hotmail.com')
-            inputElement = self.browser.find_element_by_name("pass")  # self.browser.find_element_by_class_name("inputpassword")
-            inputElement.clear()
-            inputElement.send_keys('mijzelfnatuurlijk')
-            self.browser.save_screenshot('facebook2.png')
-            self.browser.find_element_by_name('login').click()
-
-            for handle in self.browser.window_handles:
-                self.browser.switch_to_window(handle)
-            time.sleep(7)
-            self.browser.save_screenshot('ticketswap2.png')
-
-            # if "Bestelling afronden" in self.driver.page_source:
             if 'Bestelling afronden' in self.browser.page_source:
                 print 'Gereserveerd'
                 os.system('say "Ticket placed in cart"')
@@ -126,27 +158,62 @@ class TicketswapSpider(scrapy.Spider):
                 # while 1:
                 #     os.system('say "Ticket found"')
                 #     time.sleep(4)
-
-                # open https://www.ticketswap.nl/cart
             elif 'Je hebt ons geen toegang gegeven tot je Facebook account' in self.browser.page_source:
                 print 'Error tijdens Facebook login'
             else:
                 print 'Er ging iets fout in Selenium'
 
 
-    def botAlert(self, response):
-        print 'Te vaak gecrawled'
-        # os.system('say "Crawled too often"')
-        # print "Start : %s" % time.ctime()
-        # time.sleep(1)
-        # print "End : %s" % time.ctime()
-        with open('lastCrawl.html', 'wb') as F:
-            F.write(response.body)
+    def buyTicket2(self, url):
+        if self.successful:
+            return
+        self.ticketNumber += 1
+        print 'Ticket request number ' + str(self.ticketNumber)
+        # if 'Oeps, iets te vaak vernieuwd' in response.body:
+        #     self.botAlert(response)
+        # # elif 'Koop e-ticket' not in response.body:
+        #     print 'Tickets zijn al bezet'
 
-        # self.browser = webdriver.Chrome()
-        # self.browser.get(response.url)
-        # raw_input('Press ENTER to continue')
-        print 'Press ENTER to continue'
+        #     with open('lastCrawl.html', 'wb') as F:
+        #         F.write(response.body)
+        #     yield scrapy.Request(self.start_urls[0], callback=self.parse, dont_filter=True)
+        # print 'Tickets nog beschikbaar. Browser wordt geopend'
+        os.system('say "Ticket found"')
+        self.browser.get(url)
+        if 'Koop e-ticket' not in self.browser.page_source:
+            print 'Tickets zijn al bezet'
+            # with open('lastCrawl.html', 'wb') as F:
+            #     F.write()
+            yield scrapy.Request(self.start_urls[0], callback=self.parse, dont_filter=True)
+        else:
+            self.browser.find_element_by_class_name("btn-buy").click()
+            time.sleep(2)
+            if 'Bestelling afronden' in self.browser.page_source:
+                print 'Gereserveerd'
+                os.system('say "Ticket placed in cart"')
+                self.successful = True
+                # self.setInterval(self.notifyUser, 4)
+                # subprocess.call(["./tg.sh"], shell=True)
+                # while 1:
+                #     os.system('say "Ticket found"')
+                #     time.sleep(4)
+            elif 'Je hebt ons geen toegang gegeven tot je Facebook account' in self.browser.page_source:
+                print 'Error tijdens Facebook login'
+            else:
+                print 'Something went wrong in Selenium'
+                self.browser.save_screenshot('errorScreenshot.png')
+                yield scrapy.Request(self.start_urls[0], callback=self.parse, dont_filter=True)
+
+
+    def botAlert(self, response):
+        print 'botAlert'
+        # os.system('say "Crawled too often"')
+        # with open('lastCrawl.html', 'wb') as F:
+        #     F.write(response.body)
+        self.browser.get(self.start_urls[0])
+        raw_input('Press ENTER to continue')
+        yield scrapy.Request(url=self.start_urls[0], callback=self.parse, dont_filter=True)
+
 
 
     def notifyUser(self):
@@ -161,17 +228,3 @@ class TicketswapSpider(scrapy.Spider):
         t = threading.Timer(sec, funcWrapper)
         t.start()
         return t
-
-    # def gracefulExit(self,signum, frame):
-    #       self.kill_now = True
-
-
-        # CORRECT
-        # response.xpath('//section[1]/div/article').extract_first()
-        # response.xpath('/html/body/div[4]/div/section[1]/div/article').extract_first()
-        # response.xpath('//section[1]/h2').extract_first() == <h2>Aangeboden</h2> anders geen tickets aangeboden
-
-        # OLD
-        # Xpath & css selectors. Cutoff at article for item iteration, use rest of path for retrieving url
-        # body > div.l-content > div > section:nth-child(3) > div > article > div.listings-item--title > h3 > a
-        # /html/body/div[4]/div/section[1]/div/article/div[1]/h3/a
