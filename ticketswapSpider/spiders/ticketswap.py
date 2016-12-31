@@ -16,15 +16,17 @@ import requests
 
 # scrapy crawl ticketswap -a url=https://www.ticketswap.nl/listing/next-mondays-hangover-fck-nye/1000194/fbeb6be09d
 
+
 class TicketswapSpider(scrapy.Spider):
     name = "ticketswap"
-    baseUrl = "http://www.ticketswap.nl"
+    baseUrl = "https://www.ticketswap.nl"
+    firstSoldTicketUrl = None
     # start_urls = ["https://www.ticketswap.nl/event/canto-ostinato-in-de-grote-zaal-tivolivredenburg/e9d0ac25-c408-479c-8b75-832c52466026"]
     successful = False
     ticketNumber = 0
     iteration = 0
 
-    # telegram settings
+    # telegram settings: https://www.codementor.io/garethdwyer/tutorials/building-a-telegram-bot-using-python-part-1-goi5fncay
     TOKEN = os.environ['telegram_token']
     telegramUrl = "https://api.telegram.org/bot{}/".format(TOKEN)
     chatId = 57249435
@@ -44,6 +46,7 @@ class TicketswapSpider(scrapy.Spider):
 
         for handle in self.browser.window_handles:
             self.browser.switch_to_window(handle)
+        self.browser.implicitly_wait(1)  # TODO: necessary?
         inputElement = self.browser.find_element_by_name("email")
         inputElement.clear()
         inputElement.send_keys(os.environ['fb_email'])
@@ -58,7 +61,7 @@ class TicketswapSpider(scrapy.Spider):
 
     def start_requests(self):
         for url in self.start_urls:
-            request = scrapy.Request(url=url, callback=self.parse, dont_filter=True)
+            request = scrapy.Request(url=url, callback=self.visitFirstSoldTicket, dont_filter=True)
             yield request
             # yield scrapy.Request('http://checkip.dyndns.org/', callback=self.check_ip)   # enable to check proxy per request
 
@@ -66,6 +69,19 @@ class TicketswapSpider(scrapy.Spider):
     def check_ip(self, response):
         pub_ip = response.xpath('//body/text()').re('\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}')[0]
         print "My public IP is: " + pub_ip
+
+
+        # /html/body/div[4]/div/section[1]/div[1]/article[1]
+
+    # No random captcha's when crawling via this page
+    def visitFirstSoldTicket(self, response):
+        if 'Aangeboden' in response.xpath('//section[1]/h2').extract_first():
+            self.firstSoldTicketUrl = self.baseUrl + response.xpath('//section[2]/div/article/div[1]/h3/a/@href').extract_first()
+        elif 'Verkocht' in response.xpath('//section[1]/h2').extract_first():
+            self.firstSoldTicketUrl = self.baseUrl + response.xpath('//section[1]/div/article/div[1]/h3/a/@href').extract_first()
+        print 'Opening first sold ticket link: ' + self.firstSoldTicketUrl
+        request = scrapy.Request(url=self.firstSoldTicketUrl, callback=self.parse, dont_filter=True)
+        yield request
 
 
     def sendTelegramMessage(self, text):
@@ -83,19 +99,19 @@ class TicketswapSpider(scrapy.Spider):
 
         if 'Plaats een oproep' in response.body:
             print 'Geen tickets aangeboden op dit moment'
-            sleepDuration = random.uniform(0.6, 1.1)
+            sleepDuration = random.uniform(1.1, 2.0)  # (0.6, 1.1)
             print 'Sleeping for ' + str(sleepDuration)
             time.sleep(sleepDuration)
-            yield scrapy.Request(url=self.start_urls[0], callback=self.parse, dont_filter=True)
+            yield scrapy.Request(url=self.firstSoldTicketUrl, callback=self.parse, dont_filter=True)
         elif 'Oeps, iets te vaak vernieuwd' in response.body:
             self.iteration = 0
             # self.botAlert(response)
-            print 'Te vaak gecrawled'
             text = "Te vaak gecrawled"
             self.sendTelegramMessage(text)
+            print text
             self.browser.get(self.start_urls[0])
             raw_input('Press ENTER to continue')
-            yield scrapy.Request(url=self.start_urls[0], callback=self.parse, dont_filter=True)
+            yield scrapy.Request(url=self.firstSoldTicketUrl, callback=self.parse, dont_filter=True)
         else:
             self.iteration = 0
             print 'Kaartjes aangeboden'
@@ -115,7 +131,7 @@ class TicketswapSpider(scrapy.Spider):
                     print 'Tickets zijn al bezet'
                     # with open('lastCrawl.html', 'wb') as F:
                     #     F.write()
-                    yield scrapy.Request(self.start_urls[0], callback=self.parse, dont_filter=True)
+                    yield scrapy.Request(self.firstSoldTicketUrl, callback=self.parse, dont_filter=True)
                 else:
                     self.browser.find_element_by_class_name("btn-buy").click()
                     time.sleep(2)
@@ -128,14 +144,16 @@ class TicketswapSpider(scrapy.Spider):
                     elif 'Je hebt ons geen toegang gegeven tot je Facebook account' in self.browser.page_source:
                         print 'Error tijdens Facebook login'
                     else:
-                        print 'Something went wrong in Selenium'
+                        text = 'Something went wrong in Selenium'
+                        self.sendTelegramMessage(text)
+                        print text
                         self.browser.save_screenshot('errorScreenshot.png')
-                        yield scrapy.Request(self.start_urls[0], callback=self.parse, dont_filter=True)
+                        yield scrapy.Request(self.firstSoldTicketUrl, callback=self.parse, dont_filter=True)
 
 
 
 
-                break   # TODO: remove
+                break   # TODO: rewrite for-yield
 
 
     def buyTicket(self, response):
@@ -168,6 +186,7 @@ class TicketswapSpider(scrapy.Spider):
                 #     time.sleep(4)
             elif 'Je hebt ons geen toegang gegeven tot je Facebook account' in self.browser.page_source:
                 print 'Error tijdens Facebook login'
+                yield scrapy.Request(self.start_urls[0], callback=self.parse, dont_filter=True)
             else:
                 print 'Er ging iets fout in Selenium'
 
