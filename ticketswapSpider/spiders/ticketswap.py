@@ -11,10 +11,9 @@ import requests
 #  - Implement url hashtable to prevent constant re-iterating of reserved links
 #  - Proxy rotation using tor project / private proxy list instead of proxymesh
 #  - remove multi-url structure, code cleanup
-#  - Initial url request to automatically transform event link into first sold ticket link
-#  - Start scraping via telegram
+#  - Deploy on EC2, start scraping via lambda telegram bot
 
-# scrapy crawl ticketswap -a url=https://www.ticketswap.nl/listing/next-mondays-hangover-fck-nye/1000194/fbeb6be09d
+# scrapy crawl ticketswap -a url=https://www.ticketswap.nl/event/canto-ostinato-in-de-grote-zaal-tivolivredenburg/e9d0ac25-c408-479c-8b75-832c52466026
 
 
 class TicketswapSpider(scrapy.Spider):
@@ -40,18 +39,19 @@ class TicketswapSpider(scrapy.Spider):
         self.start_urls = [url]
         super(TicketswapSpider, self).__init__(*args, **kwargs)
         # self.browser = webdriver.PhantomJS()  # headless testing
+        # driver.set_window_size(1024, 768)     # optional
         self.browser = webdriver.Chrome()
         self.browser.get('https://www.ticketswap.nl')
         self.browser.find_element_by_link_text('Inloggen').click()
 
         for handle in self.browser.window_handles:
             self.browser.switch_to_window(handle)
-        self.browser.implicitly_wait(1)  # TODO: necessary?
+        # self.browser.implicitly_wait(1)  # TODO: necessary?
         inputElement = self.browser.find_element_by_name("email")
-        inputElement.clear()
+        # inputElement.clear() causing InvalidElementStateException
         inputElement.send_keys(os.environ['fb_email'])
         inputElement = self.browser.find_element_by_name("pass")
-        inputElement.clear()
+        # inputElement.clear() causing InvalidElementStateException
         inputElement.send_keys(os.environ['fb_password'])
         self.browser.find_element_by_name('login').click()
 
@@ -97,16 +97,15 @@ class TicketswapSpider(scrapy.Spider):
         # print response.request.headers
         # print response.headers
 
-        if 'Plaats een oproep' in response.body:
-            print 'Geen tickets aangeboden op dit moment'
+        if ('Plaats een oproep' in response.body) or self.iteration < 7:
             sleepDuration = random.uniform(1.1, 2.0)  # (0.6, 1.1)
-            print 'Sleeping for ' + str(sleepDuration)
+            print 'No tickets offered. Sleeping for ' + str(sleepDuration)
             time.sleep(sleepDuration)
             yield scrapy.Request(url=self.firstSoldTicketUrl, callback=self.parse, dont_filter=True)
         elif 'Oeps, iets te vaak vernieuwd' in response.body:
             self.iteration = 0
             # self.botAlert(response)
-            text = "Te vaak gecrawled"
+            text = "Crawled too often."
             self.sendTelegramMessage(text)
             print text
             self.browser.get(self.start_urls[0])
@@ -114,8 +113,12 @@ class TicketswapSpider(scrapy.Spider):
             yield scrapy.Request(url=self.firstSoldTicketUrl, callback=self.parse, dont_filter=True)
         else:
             self.iteration = 0
-            print 'Kaartjes aangeboden'
-            for ticket in response.xpath('//body/div[4]/div/div[2]/article'):
+            print 'Tickets found'
+            self.browser.get(response.url)
+            ticketArray = response.xpath('//body/div[3]/div/div[2]/article')  # Old xpath '//body/div[3]/div/div[2]/article' was changed
+            if not ticketArray:
+                print 'No tickets found for current xpath'
+            for ticket in ticketArray:
                 if self.successful:
                     break
                 ticketUrl = ticket.xpath('div[1]/h3/a/@href').extract_first()
@@ -128,21 +131,21 @@ class TicketswapSpider(scrapy.Spider):
                 os.system('say "Ticket found"')
                 self.browser.get(url)
                 if 'Koop e-ticket' not in self.browser.page_source:
-                    print 'Tickets zijn al bezet'
+                    print 'Tickets are already reserved by someone else'
                     # with open('lastCrawl.html', 'wb') as F:
                     #     F.write()
                     yield scrapy.Request(self.firstSoldTicketUrl, callback=self.parse, dont_filter=True)
                 else:
                     self.browser.find_element_by_class_name("btn-buy").click()
                     time.sleep(2)
-                    if 'Bestelling afronden' in self.browser.page_source:
-                        print 'Gereserveerd'
+                    if 'Pay with iDEAL' in self.browser.page_source:
+                        print 'Reserved tickets'
                         os.system('say "Ticket placed in cart"')
                         text = "Reserved ticket. Visit https://www.ticketswap.nl/cart to complete payment."
                         self.sendTelegramMessage(text)
                         self.successful = True
                     elif 'Je hebt ons geen toegang gegeven tot je Facebook account' in self.browser.page_source:
-                        print 'Error tijdens Facebook login'
+                        print 'Error during Facebook login'
                     else:
                         text = 'Something went wrong in Selenium'
                         self.sendTelegramMessage(text)
@@ -164,19 +167,19 @@ class TicketswapSpider(scrapy.Spider):
         if 'Oeps, iets te vaak vernieuwd' in response.body:
             self.botAlert(response)
         elif 'Koop e-ticket' not in response.body:
-            print 'Tickets zijn al bezet'
+            print 'Tickets are already reserved by someone else'
 
 
             yield scrapy.Request(self.start_urls[0], callback=self.parse, dont_filter=True)
         else:
-            print 'Tickets nog beschikbaar. Browser wordt geopend'
+            print 'Tickets still available. Opening browser'
             os.system('say "Ticket found"')
             self.browser.get(response.url)
             self.browser.find_element_by_class_name("btn-buy").click()
             time.sleep(2)
 
-            if 'Bestelling afronden' in self.browser.page_source:
-                print 'Gereserveerd'
+            if 'Pay with iDEAL' in self.browser.page_source:
+                print 'Reserved tickets'
                 os.system('say "Ticket placed in cart"')
                 self.successful = True
                 # self.setInterval(self.notifyUser, 4)
@@ -185,10 +188,10 @@ class TicketswapSpider(scrapy.Spider):
                 #     os.system('say "Ticket found"')
                 #     time.sleep(4)
             elif 'Je hebt ons geen toegang gegeven tot je Facebook account' in self.browser.page_source:
-                print 'Error tijdens Facebook login'
+                print 'Error during Facebook login'
                 yield scrapy.Request(self.start_urls[0], callback=self.parse, dont_filter=True)
             else:
-                print 'Er ging iets fout in Selenium'
+                print 'Something went wrong in Selenium'
 
 
     def buyTicket2(self, url):
@@ -208,15 +211,15 @@ class TicketswapSpider(scrapy.Spider):
         os.system('say "Ticket found"')
         self.browser.get(url)
         if 'Koop e-ticket' not in self.browser.page_source:
-            print 'Tickets zijn al bezet'
+            print 'Tickets are already reserved by someone else'
             # with open('lastCrawl.html', 'wb') as F:
             #     F.write()
             yield scrapy.Request(self.start_urls[0], callback=self.parse, dont_filter=True)
         else:
             self.browser.find_element_by_class_name("btn-buy").click()
             time.sleep(2)
-            if 'Bestelling afronden' in self.browser.page_source:
-                print 'Gereserveerd'
+            if 'Pay with iDEAL' in self.browser.page_source:
+                print 'Reserved ticket'
                 os.system('say "Ticket placed in cart"')
                 self.successful = True
                 # self.setInterval(self.notifyUser, 4)
@@ -225,7 +228,7 @@ class TicketswapSpider(scrapy.Spider):
                 #     os.system('say "Ticket found"')
                 #     time.sleep(4)
             elif 'Je hebt ons geen toegang gegeven tot je Facebook account' in self.browser.page_source:
-                print 'Error tijdens Facebook login'
+                print 'Error during Facebook login'
             else:
                 print 'Something went wrong in Selenium'
                 self.browser.save_screenshot('errorScreenshot.png')
@@ -233,7 +236,7 @@ class TicketswapSpider(scrapy.Spider):
 
 
     def botAlert(self, response):
-        print 'botAlert'
+        print 'Bot alert. Opening browser to complete Captcha'
         # os.system('say "Crawled too often"')
         # with open('lastCrawl.html', 'wb') as F:
         #     F.write(response.body)
@@ -245,7 +248,7 @@ class TicketswapSpider(scrapy.Spider):
 
     def notifyUser(self):
         # os.system('say "Ticket found"')
-        print 'ticket found'
+        print 'Ticket found'
 
 
     def setInterval(self, func, sec):

@@ -1,6 +1,6 @@
 # Ticket scraper
 
-This spider, written using the python scrapy framework, periodically crawls a popular dutch ticket trading website to check for available tickets and immediately order them once found. The website uses reCaptcha to prevent refreshing more than a couple of times per minute. To bypass this system, the spider uses a combination of proxy rotation and user agent rotation. Each consecutive request is routed past a different proxy IP using one out of the 90 most commonly found user agent strings. The bot uses Selenium webdriver to log in using facebook, and perform the interaction with the ticket buying page which contains dynamic content.
+This spider, written using the python scrapy framework, periodically crawls a popular dutch ticket trading website to check for available tickets and immediately order them once found. The website uses reCaptcha to prevent refreshing more than a couple of times per minute. To bypass this system, the spider uses a combination of proxy rotation and user agent rotation. Each consecutive request is routed past a different proxy IP using one out of the 90 most commonly found user agent strings. Seperated from this crawling process, the bot uses Selenium webdriver to log in using facebook in advance and, when a ticket is found, perform the interaction with the ticket buying page which contains dynamic AJAX content.
 
 <br>
 
@@ -36,3 +36,6 @@ The project contains two spiders, located in the ticketswapSpider/spiders direct
 ```
 scrapy crawl ticketswap -a url=<url_to_event_page>
 ```
+
+#### Demo
+![alt tag]((https://raw.github.com/Nedervino/TicketCrawler/blob/master/screenCapture.gif?raw=true)

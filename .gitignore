@@ -2,3 +2,6 @@
 *.png
 **/*.pyc
 *.html
+*.mov
+proxies.txt
+refresh.sh
