@@ -8,7 +8,7 @@
 import scrapy
 
 
-class TicketswapspiderItem(scrapy.Item):
+class TicketCrawlerItem(scrapy.Item):
     # define the fields for your item here like:
     # name = scrapy.Field()
     pass

@@ -14,16 +14,16 @@ import threading
 #  - Open browser and login before start of loop, needs all bash functionality rewritten within python
 
 
-class SingleTicketswapSpider(scrapy.Spider):
-    name = "singleTicketswap"
-    baseUrl = "http://www.ticketswap.nl"
+class singleRunSpider(scrapy.Spider):
+    name = "singleRun"
+    baseUrl = os.environ['ticket_site']
     start_urls = ["https://www.ticketswap.nl/event/canto-ostinato-in-de-grote-zaal-tivolivredenburg/e9d0ac25-c408-479c-8b75-832c52466026"]
     successful = False
     ticketNumber = 0
     ticketList = []
 
     def __init__(self, *a, **kw):
-        super(SingleTicketswapSpider, self).__init__(*a, **kw)
+        super(singleRunSpider, self).__init__(*a, **kw)
         # self.browser = webdriver.Chrome()
         # self.browser = webdriver.PhantomJS() #headless testing
 
@@ -94,7 +94,6 @@ class SingleTicketswapSpider(scrapy.Spider):
             # self.browser.find_element_by_link_text('Inloggen').click()
             
             self.browser.get(response.url)
-            self.browser.save_screenshot('ticketswap.png')
             self.browser.implicitly_wait(2)
             self.browser.find_element_by_class_name("btn-buy").click()
 
@@ -103,17 +102,16 @@ class SingleTicketswapSpider(scrapy.Spider):
             self.browser.save_screenshot('facebook.png')
             inputElement = self.browser.find_element_by_name("email")  # self.browser.find_element_by_class_name("inputtext")
             inputElement.clear()
-            inputElement.send_keys('tim.nederveen@hotmail.com')
+            inputElement.send_keys(os.environ['fb_email'])
             inputElement = self.browser.find_element_by_name("pass")  # self.browser.find_element_by_class_name("inputpassword")
             inputElement.clear()
-            inputElement.send_keys('mijzelfnatuurlijk')
+            inputElement.send_keys(os.environ['fb_password'])
             self.browser.save_screenshot('facebook2.png')
             self.browser.find_element_by_name('login').click()
 
             for handle in self.browser.window_handles:
                 self.browser.switch_to_window(handle)
             time.sleep(7)
-            self.browser.save_screenshot('ticketswap2.png')
 
             # if "Bestelling afronden" in self.driver.page_source:
             if 'Bestelling afronden' in self.browser.page_source:

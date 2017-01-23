@@ -13,14 +13,10 @@ import requests
 #  - remove multi-url structure, code cleanup
 #  - Deploy on EC2, start scraping via lambda telegram bot
 
-# scrapy crawl ticketswap -a url=https://www.ticketswap.nl/event/canto-ostinato-in-de-grote-zaal-tivolivredenburg/e9d0ac25-c408-479c-8b75-832c52466026
-
-
-class TicketswapSpider(scrapy.Spider):
-    name = "ticketswap"
-    baseUrl = "https://www.ticketswap.nl"
+class TicketsSpider(scrapy.Spider):
+    name = "tickets"
+    baseUrl = os.environ['ticket_site']
     firstSoldTicketUrl = None
-    # start_urls = ["https://www.ticketswap.nl/event/canto-ostinato-in-de-grote-zaal-tivolivredenburg/e9d0ac25-c408-479c-8b75-832c52466026"]
     successful = False
     ticketNumber = 0
     iteration = 0
@@ -37,11 +33,11 @@ class TicketswapSpider(scrapy.Spider):
 
     def __init__(self, url=' ', *args, **kwargs):
         self.start_urls = [url]
-        super(TicketswapSpider, self).__init__(*args, **kwargs)
+        super(TicketsSpider, self).__init__(*args, **kwargs)
         # self.browser = webdriver.PhantomJS()  # headless testing
         # driver.set_window_size(1024, 768)     # optional
         self.browser = webdriver.Chrome()
-        self.browser.get('https://www.ticketswap.nl')
+        self.browser.get(self.baseUrl)
         self.browser.find_element_by_link_text('Inloggen').click()
 
         for handle in self.browser.window_handles:
@@ -97,7 +93,7 @@ class TicketswapSpider(scrapy.Spider):
         # print response.request.headers
         # print response.headers
 
-        if ('Plaats een oproep' in response.body) or self.iteration < 7:
+        if 'Plaats een oproep' in response.body:
             sleepDuration = random.uniform(1.1, 2.0)  # (0.6, 1.1)
             print 'No tickets offered. Sleeping for ' + str(sleepDuration)
             time.sleep(sleepDuration)
@@ -141,7 +137,7 @@ class TicketswapSpider(scrapy.Spider):
                     if 'Pay with iDEAL' in self.browser.page_source:
                         print 'Reserved tickets'
                         os.system('say "Ticket placed in cart"')
-                        text = "Reserved ticket. Visit https://www.ticketswap.nl/cart to complete payment."
+                        text = "Reserved ticket. Visit " + self.baseUrl + "/cart to complete payment."
                         self.sendTelegramMessage(text)
                         self.successful = True
                     elif 'Je hebt ons geen toegang gegeven tot je Facebook account' in self.browser.page_source:

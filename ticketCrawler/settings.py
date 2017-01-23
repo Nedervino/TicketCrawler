@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Scrapy settings for ticketswapSpider project
+# Scrapy settings for ticketCrawler project
 #
 # For simplicity, this file contains only settings considered important or
 # commonly used. You can find more settings consulting the documentation:
@@ -9,10 +9,10 @@
 #     http://scrapy.readthedocs.org/en/latest/topics/downloader-middleware.html
 #     http://scrapy.readthedocs.org/en/latest/topics/spider-middleware.html
 
-BOT_NAME = 'ticketswapSpider'
+BOT_NAME = 'ticketCrawler'
 
-SPIDER_MODULES = ['ticketswapSpider.spiders']
-NEWSPIDER_MODULE = 'ticketswapSpider.spiders'
+SPIDER_MODULES = ['ticketCrawler.spiders']
+NEWSPIDER_MODULE = 'ticketCrawler.spiders'
 
 
 
@@ -20,7 +20,7 @@ NEWSPIDER_MODULE = 'ticketswapSpider.spiders'
 
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
-#USER_AGENT = 'ticketswapSpider (+http://www.yourdomain.com)'
+#USER_AGENT = 'ticketCrawler (+http://www.yourdomain.com)'
 
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = False
@@ -51,7 +51,7 @@ COOKIES_ENABLED = False
 # Enable or disable spider middlewares
 # See http://scrapy.readthedocs.org/en/latest/topics/spider-middleware.html
 #SPIDER_MIDDLEWARES = {
-#    'ticketswapSpider.middlewares.TicketswapspiderSpiderMiddleware': 543,
+#    'ticketCrawler.middlewares.CustomSpiderMiddleware': 543,
 #}
 
 # Enable or disable downloader middlewares
@@ -77,8 +77,8 @@ RETRY_HTTP_CODES = [500, 503, 504, 400, 403, 404, 408]
 # http://username:password@host2:port
 # http://host3:port
 # ...
-PROXY_LIST = "/Users/Tim/Documents/Informatica/Ticketswap/scrapy/ticketswapSpider/proxies.txt"
-USER_AGENT_LIST = "/Users/Tim/Documents/Informatica/Ticketswap/scrapy/ticketswapSpider/useragentsMostCommon.txt"
+# PROXY_LIST = "path/to/proxies.txt"
+USER_AGENT_LIST = "useragentsMostCommon.txt"
 
 
 # Enable or disable extensions
@@ -90,7 +90,7 @@ USER_AGENT_LIST = "/Users/Tim/Documents/Informatica/Ticketswap/scrapy/ticketswap
 # Configure item pipelines
 # See http://scrapy.readthedocs.org/en/latest/topics/item-pipeline.html
 #ITEM_PIPELINES = {
-#    'ticketswapSpider.pipelines.SomePipeline': 300,
+#    'ticketCrawler.pipelines.TicketCralwerPipeline': 300,
 #}
 
 # Enable and configure the AutoThrottle extension (disabled by default)

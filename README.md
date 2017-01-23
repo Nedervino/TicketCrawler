@@ -32,9 +32,9 @@ You can add or remove user agents from the list stored in useragentsMostCommon.t
 
 
 #### Execution
-The project contains two spiders, located in the ticketswapSpider/spiders directory. ticketswap is the full working version, and can be started by running the following command from the root:
+The project contains two spiders, located in the ticketCrawler/spiders directory. tickets.py is the full working version, and can be started by running the following command from the root:
 ```
-scrapy crawl ticketswap -a url=<url_to_event_page>
+scrapy crawl tickets -a url=<url_to_event_page>
 ```
 
 #### Demo
