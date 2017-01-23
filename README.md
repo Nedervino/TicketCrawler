@@ -18,13 +18,14 @@ pip install scrapy-random-useragent
 The script rotates proxies via the proxymesh service. You can get a free 1 month trial on <https://proxymesh.com>. After you've registered, visit <https://proxymesh.com/account/dashboard/> and choose an authorized host. Combining this with your login credits gives you the string needed for the spider, in the following form:
 `<username>:<password>@<country>.proxymesh.com:<port>`
 
-This string, along with your facebook login credentials, need to be stored as environment variables before running the script. The following three environment variables need to be set: http_proxy, fb_email, and fb_password.
+This string, along with your facebook login credentials and the ticket site base url, need to be stored as environment variables before running the script. The following three environment variables need to be set: http_proxy, fb_email, and fb_password.
 To set these on a unix system, the following three lines can be executed in your terminal or stored in your .bash_profile/.bashrc. Make sure to restart your terminal before running the script.
 
 ```
 export http_proxy=<username>:<password>@fr.proxymesh.com:<port>
 export fb_email=<facebook_email>
 export fb_password=<facebook_password>
+export ticket_site=<site_base_url>
 ```
 
 

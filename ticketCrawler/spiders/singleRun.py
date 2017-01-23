@@ -17,7 +17,7 @@ import threading
 class singleRunSpider(scrapy.Spider):
     name = "singleRun"
     baseUrl = os.environ['ticket_site']
-    start_urls = ["https://www.ticketswap.nl/event/canto-ostinato-in-de-grote-zaal-tivolivredenburg/e9d0ac25-c408-479c-8b75-832c52466026"]
+    start_urls = [baseUrl + "/event/canto-ostinato-in-de-grote-zaal-tivolivredenburg/e9d0ac25-c408-479c-8b75-832c52466026"]
     successful = False
     ticketNumber = 0
     ticketList = []
@@ -124,7 +124,7 @@ class singleRunSpider(scrapy.Spider):
                 #     os.system('say "Ticket found"')
                 #     time.sleep(4)
 
-                # open https://www.ticketswap.nl/cart
+                # open cart page
             elif 'Je hebt ons geen toegang gegeven tot je Facebook account' in self.browser.page_source:
                 print 'Error tijdens Facebook login'
             else:
