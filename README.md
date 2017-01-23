@@ -38,4 +38,4 @@ scrapy crawl ticketswap -a url=<url_to_event_page>
 ```
 
 #### Demo
-![alt tag]((https://raw.github.com/Nedervino/TicketCrawler/blob/master/screenCapture.gif?raw=true)
+![Screen Capture](https://github.com/Nedervino/TicketCrawler/blob/master/screenCapture.gif?raw=true)
