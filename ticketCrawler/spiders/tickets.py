@@ -22,7 +22,7 @@ class TicketsSpider(scrapy.Spider):
     iteration = 0
 
     # telegram settings: https://www.codementor.io/garethdwyer/tutorials/building-a-telegram-bot-using-python-part-1-goi5fncay
-    TOKEN = os.environ['telegram_token']
+    TOKEN = "300918156:AAEGu1-26uxjNLEi7PC54CjCu8eIfsYKwLY" #os.environ['telegram_token']
     telegramUrl = "https://api.telegram.org/bot{}/".format(TOKEN)
     chatId = 57249435
 
@@ -94,7 +94,7 @@ class TicketsSpider(scrapy.Spider):
         # print response.headers
 
         if 'Plaats een oproep' in response.body:
-            sleepDuration = random.uniform(1.1, 2.0)  # (0.6, 1.1)
+            sleepDuration = random.uniform(1.5, 2.5)  # (0.6, 1.1)
             print 'No tickets offered. Sleeping for ' + str(sleepDuration)
             time.sleep(sleepDuration)
             yield scrapy.Request(url=self.firstSoldTicketUrl, callback=self.parse, dont_filter=True)
@@ -124,7 +124,7 @@ class TicketsSpider(scrapy.Spider):
                 
 
                 # TODO: function call
-                os.system('say "Ticket found"')
+                # os.system('say "Ticket found"')
                 self.browser.get(url)
                 if 'Koop e-ticket' not in self.browser.page_source:
                     print 'Tickets are already reserved by someone else'
@@ -134,7 +134,7 @@ class TicketsSpider(scrapy.Spider):
                 else:
                     self.browser.find_element_by_class_name("btn-buy").click()
                     time.sleep(2)
-                    if 'Pay with iDEAL' in self.browser.page_source:
+                    if ('Pay with iDEAL' in self.browser.page_source) or ('Betaal met iDEAL' in self.browser.page_source):
                         print 'Reserved tickets'
                         os.system('say "Ticket placed in cart"')
                         text = "Reserved ticket. Visit " + self.baseUrl + "/cart to complete payment."
@@ -162,14 +162,14 @@ class TicketsSpider(scrapy.Spider):
         print 'Ticket request number ' + str(self.ticketNumber)
         if 'Oeps, iets te vaak vernieuwd' in response.body:
             self.botAlert(response)
-        elif 'Koop e-ticket' not in response.body:
+        elif ('Koop e-ticket' not in response.body) and ('Buy e-ticket' not in response.body):
             print 'Tickets are already reserved by someone else'
 
 
             yield scrapy.Request(self.start_urls[0], callback=self.parse, dont_filter=True)
         else:
             print 'Tickets still available. Opening browser'
-            os.system('say "Ticket found"')
+            # os.system('say "Ticket found"')
             self.browser.get(response.url)
             self.browser.find_element_by_class_name("btn-buy").click()
             time.sleep(2)
@@ -204,7 +204,7 @@ class TicketsSpider(scrapy.Spider):
         #         F.write(response.body)
         #     yield scrapy.Request(self.start_urls[0], callback=self.parse, dont_filter=True)
         # print 'Tickets nog beschikbaar. Browser wordt geopend'
-        os.system('say "Ticket found"')
+        # os.system('say "Ticket found"')
         self.browser.get(url)
         if 'Koop e-ticket' not in self.browser.page_source:
             print 'Tickets are already reserved by someone else'
