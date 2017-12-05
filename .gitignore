@@ -5,3 +5,4 @@
 *.mov
 proxies.txt
 refresh.sh
+lastCrawl.html
